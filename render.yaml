@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: novin-production
+    runtime: python
+    plan: starter
+    buildCommand: "echo No dependencies to install"
+    startCommand: "python server.py"
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: NOVIN_DATA_DIR
+        value: /var/data
+      - key: NOVIN_ADMIN_USER
+        value: admin
+      - key: NOVIN_ADMIN_PASSWORD
+        sync: false
+    disk:
+      name: novin-production-data
+      mountPath: /var/data
+      sizeGB: 1

@@ -8,12 +8,15 @@ import sqlite3, json, hashlib, secrets, mimetypes, threading, os, sys
 
 BASE = Path(__file__).resolve().parent
 STATIC = BASE / 'static'
-DATA = BASE / 'data'
+DATA = Path(os.environ.get('NOVIN_DATA_DIR', str(BASE / 'data'))).expanduser().resolve()
 DB_PATH = DATA / 'production.db'
 HOST = os.environ.get('NOVIN_HOST', '0.0.0.0')
-PORT = int(os.environ.get('NOVIN_PORT', '8080'))
+PORT = int(os.environ.get('PORT', os.environ.get('NOVIN_PORT', '8080')))
+ADMIN_USER = os.environ.get('NOVIN_ADMIN_USER', 'admin')
+ADMIN_PASSWORD = os.environ.get('NOVIN_ADMIN_PASSWORD', 'admin123')
 WRITE_LOCK = threading.RLock()
 SESSIONS = {}
+LOGIN_ATTEMPTS = {}
 SESSION_LOCK = threading.Lock()
 
 
@@ -21,7 +24,9 @@ def connect():
     con = sqlite3.connect(DB_PATH, timeout=20)
     con.row_factory = sqlite3.Row
     con.execute('PRAGMA foreign_keys=ON')
-    con.execute('PRAGMA journal_mode=WAL')
+    # DELETE mode is safer than WAL when the folder is accidentally run from a Windows network share.
+    con.execute('PRAGMA journal_mode=DELETE')
+    con.execute('PRAGMA synchronous=NORMAL')
     return con
 
 
@@ -85,7 +90,7 @@ def init_db():
         ''')
         if con.execute('SELECT COUNT(*) FROM users').fetchone()[0] == 0:
             con.execute('INSERT INTO users(username,password_hash,name,role) VALUES(?,?,?,?)',
-                        ('admin', pass_hash('admin123'), 'مدیر سیستم', 'manager'))
+                        (ADMIN_USER, pass_hash(ADMIN_PASSWORD), 'مدیر سیستم', 'manager'))
 
 
 def row_dict(row):
@@ -112,6 +117,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Content-Length', str(len(raw)))
         self.send_header('Cache-Control', 'no-store')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('X-Frame-Options', 'DENY')
+        self.send_header('Referrer-Policy', 'same-origin')
         self.end_headers()
         self.wfile.write(raw)
 
@@ -197,6 +205,10 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:
             self.error_json('خطای داخلی سرور: ' + str(exc), 500)
 
+    def client_ip(self):
+        forwarded = self.headers.get('X-Forwarded-For', '')
+        return forwarded.split(',')[0].strip() if forwarded else self.client_address[0]
+
     def do_POST(self):
         try:
             path = urlparse(self.path).path
@@ -204,10 +216,20 @@ class Handler(BaseHTTPRequestHandler):
             if path == '/api/login':
                 username = str(body.get('username', '')).strip()
                 password = str(body.get('password', ''))
+                ip = self.client_ip()
+                now = datetime.now()
+                with SESSION_LOCK:
+                    LOGIN_ATTEMPTS[ip] = [t for t in LOGIN_ATTEMPTS.get(ip, []) if now - t < timedelta(minutes=10)]
+                    if len(LOGIN_ATTEMPTS[ip]) >= 10:
+                        return self.error_json('تلاش ورود بیش از حد است؛ ده دقیقه بعد دوباره امتحان کنید', 429)
                 with connect() as con:
                     row = con.execute('SELECT * FROM users WHERE username=? COLLATE NOCASE AND active=1', (username,)).fetchone()
                 if not row or not pass_ok(password, row['password_hash']):
+                    with SESSION_LOCK:
+                        LOGIN_ATTEMPTS.setdefault(ip, []).append(now)
                     return self.error_json('نام کاربری یا رمز عبور اشتباه است', 401)
+                with SESSION_LOCK:
+                    LOGIN_ATTEMPTS.pop(ip, None)
                 token = secrets.token_urlsafe(32)
                 with SESSION_LOCK:
                     SESSIONS[token] = {'user_id': row['id'], 'expires': datetime.now() + timedelta(hours=12)}
@@ -320,7 +342,7 @@ class Handler(BaseHTTPRequestHandler):
         if not target.is_file():
             target = STATIC / 'index.html'
         data = target.read_bytes();ctype=mimetypes.guess_type(str(target))[0] or 'application/octet-stream'
-        self.send_response(200);self.send_header('Content-Type',ctype + ('; charset=utf-8' if ctype.startswith('text/') else ''));self.send_header('Content-Length',str(len(data)));self.send_header('Cache-Control','no-cache' if target.name=='index.html' else 'public, max-age=86400');self.end_headers();self.wfile.write(data)
+        self.send_response(200);self.send_header('Content-Type',ctype + ('; charset=utf-8' if ctype.startswith('text/') else ''));self.send_header('Content-Length',str(len(data)));self.send_header('Cache-Control','no-cache' if target.name=='index.html' else 'public, max-age=86400');self.send_header('X-Content-Type-Options','nosniff');self.send_header('X-Frame-Options','DENY');self.send_header('Referrer-Policy','same-origin');self.end_headers();self.wfile.write(data)
 
 
 def main():
@@ -330,7 +352,8 @@ def main():
     print('سامانه مشترک ثبت تولید نوین اجرا شد')
     print(f'روی همین کامپیوتر: http://localhost:{PORT}')
     print(f'برای شبکه کارخانه: http://IP-این-کامپیوتر:{PORT}')
-    print('ورود مدیر: admin / admin123')
+    print(f'نام کاربری مدیر: {ADMIN_USER}')
+    print('رمز مدیر از متغیر NOVIN_ADMIN_PASSWORD خوانده می‌شود')
     print('برای توقف Ctrl+C را بزنید')
     print('='*62)
     try:server.serve_forever()
