@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ورود با کد دسترسی — سامانه</title>
+  <style>
+    :root{--bg:#f5f7fb;--card:#fff;--accent:#0b6b5b;--muted:#6b7280}
+    body{font-family:Tahoma,Arial,sans-serif;background:var(--bg);margin:0;padding:2rem;direction:rtl;color:#0b1730}
+    .container{max-width:900px;margin:0 auto}
+    .card{background:var(--card);border-radius:10px;padding:1.25rem;box-shadow:0 8px 30px rgba(10,20,40,0.06)}
+    h1{margin:0 0 0.5rem 0;font-size:20px}
+    p{margin:0 0 1rem 0;color:var(--muted)}
+    .row{display:flex;gap:0.5rem;align-items:center}
+    input[type=text], input[type=password], input[type=number], select{padding:0.6rem;border:1px solid #e3e8ef;border-radius:6px;flex:1}
+    button{background:var(--accent);color:#fff;border:none;padding:0.6rem 0.9rem;border-radius:6px;cursor:pointer}
+    button.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+    .muted{color:var(--muted);font-size:13px}
+    .codes{margin-top:1rem;border-top:1px dashed #e6edf3;padding-top:1rem}
+    table{width:100%;border-collapse:collapse;margin-top:0.5rem}
+    th,td{padding:0.5rem;text-align:right;border-bottom:1px solid #f1f5f9;font-size:14px}
+    .small{font-size:13px;color:var(--muted)}
+    .success{color:#047857}
+    .danger{color:#b91c1c}
+    .hidden{display:none}
+    .flex{display:flex;gap:0.5rem}
+    .actions{display:flex;gap:0.4rem}
+    .note{background:#fff9e6;padding:0.6rem;border-radius:6px;margin-top:0.75rem;border:1px solid #f0e6c8}
+    footer{margin-top:1rem;text-align:center;color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>ورود با کد دسترسی</h1>
+      <p>به‌راحتی می‌توانید کدهای دسترسی ایجاد کنید و به افراد بدهید تا وارد ناحیهٔ محافظت‌شده شوند. این پیاده‌سازی فقط سمت کلاینت است (بدون سرور). کدها در مرورگر شما ذخیره می‌شوند.</p>
+
+      <section id="enterSection">
+        <div class="row">
+          <input id="accessInput" type="text" placeholder="کد دسترسی را وارد کنید" aria-label="کد دسترسی">
+          <button id="enterBtn">ورود</button>
+        </div>
+        <div id="enterMessage" class="small muted" style="margin-top:.5rem"></div>
+      </section>
+
+      <hr style="margin:1rem 0">
+
+      <div class="flex" style="justify-content:space-between;align-items:center">
+        <div>
+          <strong>مدیریت کدها</strong>
+          <div class="small muted">ایجاد، کپی و ابطال کدها (نیاز به رمز مدیریت برای دسترسی)</div>
+        </div>
+        <div class="actions">
+          <button id="showManager" class="ghost">بازکردن مدیریت</button>
+        </div>
+      </div>
+
+      <div id="manager" class="hidden">
+        <div style="margin-top:0.75rem">
+          <div class="row">
+            <input id="adminPass" type="password" placeholder="رمز مدیریت را وارد کنید" aria-label="رمز مدیریت">
+            <button id="unlockBtn">دسترسی</button>
+          </div>
+          <div id="unlockMsg" class="small muted" style="margin-top:.5rem"></div>
+        </div>
+
+        <div id="managerArea" class="hidden">
+          <div style="margin-top:1rem" class="card">
+            <h2 style="font-size:16px;margin:0 0 .5rem 0">ایجاد کد جدید</h2>
+            <div class="row">
+              <input id="label" type="text" placeholder="برچسب (مثلاً: میهمان-علی)" aria-label="برچسب">
+              <select id="typeSelect" style="max-width:160px">
+                <option value="multi">چندبار مصرف</option>
+                <option value="single">یک‌بار مصرف</option>
+              </select>
+              <input id="uses" type="number" min="1" value="1" style="max-width:100px" title="حداکثر دفعات استفاده (برای چندبار مصرف)">
+              <button id="genBtn">ایجاد</button>
+            </div>
+            <div class="note small">توجه: این سیستم کدها را در LocalStorage مرورگر ذخیره می‌کند؛ اگر دستگاه یا مرورگر عوض شود، مدیریت کدها از بین خواهد رفت. برای استفادهٔ امن و همیشگی باید آن‌ها را در سرور ذخیره کنید.</div>
+          </div>
+
+          <div class="codes">
+            <h3 style="margin:0 0 .5rem 0">کدهای موجود</h3>
+            <div id="codesList" class="small muted">هیچ کدی موجود نیست.</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="protected" class="hidden">
+        <h2 style="margin-top:1rem">!ورود موفق</h2>
+        <p class="small">شما با کد معتبر وارد شدید. این ناحیهٔ محافظت‌شده است—در اینجا می‌توانید لینک‌ها، فایل‌ها یا ابزارهایی که می‌خواهید را قرار دهید.</p>
+        <div style="margin-top:0.75rem">
+          <button id="logoutBtn" class="ghost">خروج</button>
+        </div>
+      </div>
+
+    </div>
+    <footer>نسخهٔ سادهٔ کلاینتی — novin-production</footer>
+  </div>
+
+  <script>
+    // کلیدها در localStorage با نام accessCodes ذخیره می‌شوند
+    const STORAGE_KEY = 'accessCodes_v1';
+    const ADMIN_PASS = 'admin-novin-2026'; // رمز سادهٔ مدیریت؛ در عمل امن نیست — برای استفادهٔ محلی
+
+    function loadCodes(){
+      try{
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      }catch(e){return []}
+    }
+    function saveCodes(list){localStorage.setItem(STORAGE_KEY, JSON.stringify(list))}
+
+    function genCode(len=6){
+      const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let s='';for(let i=0;i<len;i++)s+=chars.charAt(Math.floor(Math.random()*chars.length));
+      return s;
+    }
+
+    function renderCodes(){
+      const list = loadCodes();
+      const el = document.getElementById('codesList');
+      if(!list.length){el.innerHTML='هیچ کدی موجود نیست.';return}
+      const rows = ['<table><thead><tr><th>کد</th><th>برچسب</th><th>نوع</th><th>مانده</th><th></th></tr></thead><tbody>'];
+      list.forEach((c,i)=>{
+        rows.push(`<tr><td><strong>${c.code}</strong></td><td>${escapeHtml(c.label||'—')}</td><td>${c.type==='single'?'یک‌بار':'چندبار'}</td><td>${c.type==='single'?(c.used?'<span class="danger">استفاده‌شده</span>':'⏳'):(c.usesRemaining===undefined? 'نامحدود' : c.usesRemaining)}</td><td><div class="actions"><button data-i="${i}" class="copyBtn">کپی</button><button data-i="${i}" class="revokeBtn ghost">ابطال</button></div></td></tr>`)
+      })
+      rows.push('</tbody></table>');
+      el.innerHTML = rows.join('');
+      // bind buttons
+      el.querySelectorAll('.copyBtn').forEach(b=>b.onclick=()=>{
+        const i=+b.dataset.i; navigator.clipboard?.writeText(loadCodes()[i].code).then(()=>toast('کپی شد'));
+      })
+      el.querySelectorAll('.revokeBtn').forEach(b=>b.onclick=()=>{
+        const i=+b.dataset.i; const l=loadCodes(); l.splice(i,1); saveCodes(l); renderCodes(); toast('کد ابطال شد', true);
+      })
+    }
+
+    function escapeHtml(s){return String(s).replace(/[&<>\"]/g,ch=>({ '&':'&amp;','<':'&lt;','>':'&gt;','\\':'\\\\','"':'&quot;'}[ch]))}
+
+    function toast(text, warn=false){const el=document.getElementById('enterMessage'); el.textContent=text; el.className = warn? 'small danger' : 'small success'; setTimeout(()=>{el.textContent=''; el.className='small muted'},3000)}
+
+    // ورود
+    document.getElementById('enterBtn').onclick = ()=>{
+      const val = document.getElementById('accessInput').value.trim().toUpperCase();
+      if(!val){toast('لطفاً کد را وارد کنید', true);return}
+      const codes = loadCodes();
+      const idx = codes.findIndex(c => c.code===val);
+      if(idx===-1){toast('کد نامعتبر است', true);return}
+      const item = codes[idx];
+      if(item.type==='single'){
+        if(item.used){toast('این کد قبلاً استفاده شده است', true);return}
+        item.used = true; saveCodes(codes);
+      }else if(item.type==='multi' && item.usesRemaining!==undefined){
+        if(item.usesRemaining<=0){toast('این کد تمام شده است', true);return}
+        item.usesRemaining--; saveCodes(codes);
+      }
+      // موفقیت
+      document.getElementById('protected').classList.remove('hidden');
+      toast('ورود موفق — خوش آمدید');
+    }
+
+    document.getElementById('logoutBtn').onclick = ()=>{
+      document.getElementById('protected').classList.add('hidden');
+      toast('خروج انجام شد');
+    }
+
+    // مدیر
+    document.getElementById('showManager').onclick = ()=>{
+      const m = document.getElementById('manager'); m.classList.toggle('hidden');
+    }
+    document.getElementById('unlockBtn').onclick = ()=>{
+      const pass = document.getElementById('adminPass').value;
+      const msg = document.getElementById('unlockMsg');
+      if(pass===ADMIN_PASS){
+        document.getElementById('managerArea').classList.remove('hidden');
+        msg.textContent='دسترسی مدیریت فعال شد'; msg.className='small success'; renderCodes();
+      }else{ msg.textContent='رمز اشتباه است'; msg.className='small danger' }
+      setTimeout(()=>{msg.textContent=''; msg.className='small muted'},2500)
+    }
+
+    document.getElementById('genBtn').onclick = ()=>{
+      const label = document.getElementById('label').value.trim();
+      const type = document.getElementById('typeSelect').value;
+      const uses = Number(document.getElementById('uses').value) || 1;
+      const code = genCode(6);
+      const list = loadCodes();
+      const item = {code, label, type, created: Date.now()};
+      if(type==='single'){item.used=false}
+      else{ item.usesRemaining = uses }
+      list.unshift(item); saveCodes(list); renderCodes(); toast('کد ایجاد شد');
+    }
+
+    // init
+    (function(){
+      renderCodes();
+      // accessibility: press Enter in input
+      document.getElementById('accessInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('enterBtn').click() } })
+      document.getElementById('adminPass').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('unlockBtn').click() } })
+    })();
+  </script>
+</body>
+</html>
